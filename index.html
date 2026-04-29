@@ -1,249 +1,104 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Axion Finance - Controle Financeiro Inteligente</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <!-- Loading Screen -->
-    <div id="loading" class="loading-screen">
-        <div class="loading-logo">
-            <i class="fas fa-chart-line"></i>
-            <span>Axion</span>
-        </div>
-        <div class="loading-bar">
-            <div class="loading-progress"></div>
-        </div>
-    </div>
+<!DOCTYPE html> 
+<html lang="pt-br"> 
+<head> 
+<meta charset="UTF-8"> 
+<meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+<title>Axion Finance | Intelligent Precision</title> 
+<link rel="stylesheet" href="style.css"> 
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet"> 
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"> 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+<script src="https://cdn.tailwindcss.com"></script> 
+<script> 
+tailwind.config = { 
+theme: { 
+extend: { 
+colors: { 
+primary: '#FF3B3B', 
+dark: '#0D0D0D', 
+card: '#161616', 
+}, 
+fontFamily: { 
+inter: ['Inter', 'sans-serif'], 
+} 
+} 
+} 
+} 
+</script> 
+</head> 
 
-    <!-- Main App -->
-    <div id="app" class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="header-left">
-                    <i class="fas fa-gem header-icon"></i>
-                    <h1 class="header-title">Axion Finance</h1>
-                </div>
-                <div class="header-right">
-                    <button id="theme-toggle" class="theme-btn">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                    <button id="settings-btn" class="settings-btn">
-                        <i class="fas fa-cog"></i>
-                    </button>
-                </div>
-            </div>
-        </header>
+<body class="bg-black text-white font-inter overflow-x-hidden"> 
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Dashboard Screen -->
-            <section id="dashboard" class="screen active">
-                <div class="dashboard-grid">
-                    <!-- Balance Card -->
-                    <div class="card balance-card">
-                        <div class="card-header">
-                            <h3>Saldo Restante</h3>
-                            <div class="status-indicator good">
-                                <i class="fas fa-arrow-up"></i>
-                            </div>
-                        </div>
-                        <div class="balance-amount" id="balance-amount">R$ 0,00</div>
-                        <div class="balance-progress">
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="balance-progress"></div>
-                            </div>
-                            <span class="progress-text" id="balance-percent">0%</span>
-                        </div>
-                    </div>
+<!-- App Shell --> 
+<div id="app" class="flex flex-col md:flex-row min-h-screen"> 
 
-                    <!-- Quick Stats -->
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-value" id="total-spent">R$ 0,00</div>
-                            <div class="stat-label">Total Gasto</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value" id="salary-value">R$ 0,00</div>
-                            <div class="stat-label">Salário</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value" id="monthly-goal">R$ 0,00</div>
-                            <div class="stat-label">Meta Mensal</div>
-                        </div>
-                    </div>
+<!-- Desktop Sidebar --> 
+<nav class="hidden md:flex flex-col w-64 fixed h-full border-r border-white/10 bg-[#0D0D0D] z-50"> 
+<div class="p-8"> 
+<h1 class="text-2xl font-black italic text-[#FF3B3B] tracking-tighter">AXION</h1> 
+<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mt-1">Intelligent Precision</p> 
+</div> 
 
-                    <!-- Insights -->
-                    <div class="card insights-card">
-                        <div class="card-header">
-                            <h3><i class="fas fa-brain"></i> Insights Inteligentes</h3>
-                        </div>
-                        <div id="insights-list" class="insights-list">
-                            <div class="insight-item">
-                                <i class="fas fa-info-circle"></i>
-                                <span>Configure seu salário para começar</span>
-                            </div>
-                        </div>
-                    </div>
+<div class="flex-1 px-4 space-y-2" id="desktop-nav"> 
+<button onclick="router.navigate('dashboard')" class="nav-link w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all"> 
+<span class="material-icons-round">dashboard</span> Dashboard 
+</button> 
 
-                    <!-- Expenses Chart -->
-                    <div class="card chart-card">
-                        <div class="card-header">
-                            <h3>Distribuição dos Gastos</h3>
-                        </div>
-                        <canvas id="expenses-chart" width="400" height="200"></canvas>
-                    </div>
-                </div>
-            </section>
+<button onclick="router.navigate('portfolio')" class="nav-link w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all"> 
+<span class="material-icons-round">account_balance_wallet</span> Portfólio 
+</button> 
 
-            <!-- Expenses Screen -->
-            <section id="expenses" class="screen">
-                <div class="screen-header">
-                    <h2><i class="fas fa-receipt"></i> Meus Gastos</h2>
-                    <button id="add-expense-btn" class="fab">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-                
-                <div class="expenses-controls">
-                    <div class="category-manager">
-                        <button id="add-category-btn" class="btn-secondary">
-                            <i class="fas fa-plus"></i> Nova Categoria
-                        </button>
-                    </div>
-                </div>
+<button onclick="router.navigate('learning')" class="nav-link w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all"> 
+<span class="material-icons-round">school</span> Aprender 
+</button> 
 
-                <div id="expenses-list" class="expenses-list">
-                    <div class="empty-state">
-                        <i class="fas fa-receipt"></i>
-                        <h3>Nenhum gasto registrado</h3>
-                        <p>Adicione seu primeiro gasto clicando no botão +</p>
-                    </div>
-                </div>
-            </section>
+<button onclick="router.navigate('settings')" class="nav-link w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all"> 
+<span class="material-icons-round">settings</span> Ajustes 
+</button> 
+</div> 
 
-            <!-- Add Expense Modal -->
-            <div id="add-expense-modal" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>Novo Gasto</h3>
-                        <button class="modal-close">&times;</button>
-                    </div>
-                    <form id="expense-form">
-                        <div class="form-group">
-                            <label>Valor</label>
-                            <input type="number" id="expense-value" placeholder="0,00" step="0.01" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Categoria</label>
-                            <select id="expense-category" required>
-                                <option value="">Selecione...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Descrição (opcional)</label>
-                            <input type="text" id="expense-description" placeholder="O que você comprou?">
-                        </div>
-                        <button type="submit" class="btn-primary full-width">Adicionar Gasto</button>
-                    </form>
-                </div>
-            </div>
+<div class="p-6 border-t border-white/10"> 
+<div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5"> 
+<div class="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FF3B3B] to-red-900 flex items-center justify-center font-bold">AV</div> 
+<div class="overflow-hidden"> 
+<p class="text-sm font-bold truncate">Alex Vance</p> 
+<p id="user-tier-label" class="text-[10px] text-gray-500 uppercase">Premium Tier</p> 
+</div> 
+</div> 
+</div> 
+</nav> 
 
-            <!-- Goals Screen -->
-            <section id="goals" class="screen">
-                <div class="screen-header">
-                    <h2><i class="fas fa-bullseye"></i> Minhas Metas</h2>
-                    <button id="add-goal-btn" class="btn-secondary">
-                        <i class="fas fa-plus"></i> Nova Meta
-                    </button>
-                </div>
-                <div id="goals-list" class="goals-list">
-                    <div class="empty-state">
-                        <i class="fas fa-bullseye"></i>
-                        <h3>Nenhuma meta criada</h3>
-                        <p>Crie metas para se motivar financeiramente</p>
-                    </div>
-                </div>
-            </section>
+<!-- Main Content Area --> 
+<main id="main-content" class="flex-1 md:ml-64 pb-24 md:pb-0 min-h-screen bg-[#080808]"> 
+<!-- As telas serão injetadas aqui via JS --> 
+</main> 
 
-            <!-- Investments Screen -->
-            <section id="investments" class="screen">
-                <div class="screen-header">
-                    <h2><i class="fas fa-chart-line"></i> Investimentos</h2>
-                </div>
-                <div class="investments-content">
-                    <div class="card">
-                        <h3>Sugestão Automática</h3>
-                        <div id="investment-suggestion" class="investment-suggestion">
-                            Configure seu perfil para receber sugestões personalizadas
-                        </div>
-                    </div>
-                    <div class="card">
-                        <h3>Perfil do Investidor</h3>
-                        <button id="setup-profile-btn" class="btn-primary">Configurar Perfil</button>
-                    </div>
-                </div>
-            </section>
+<!-- Mobile Bottom Nav --> 
+<nav class="md:hidden fixed bottom-0 left-0 w-full bg-[#0D0D0D]/90 backdrop-blur-xl border-t border-white/10 flex justify-around items-center h-20 px-4 z-50"> 
 
-            <!-- Settings Screen -->
-            <section id="settings" class="screen">
-                <div class="screen-header">
-                    <h2><i class="fas fa-cog"></i> Configurações</h2>
-                </div>
-                <div class="settings-grid">
-                    <div class="setting-item">
-                        <label>Salário Mensal</label>
-                        <div class="input-group">
-                            <span>R$</span>
-                            <input type="number" id="salary-input" step="0.01">
-                            <button id="save-salary-btn" class="btn-primary">Salvar</button>
-                        </div>
-                    </div>
-                    <div class="setting-item">
-                        <label>Meta Mensal de Economia</label>
-                        <div class="input-group">
-                            <span>R$</span>
-                            <input type="number" id="goal-input" step="0.01">
-                            <button id="save-goal-btn" class="btn-primary">Salvar</button>
-                        </div>
-                    </div>
-                    <div class="setting-item danger">
-                        <button id="reset-data-btn" class="btn-danger">Resetar Todos os Dados</button>
-                    </div>
-                </div>
-            </section>
-        </main>
+<button onclick="router.navigate('dashboard')" class="mobile-nav-link flex flex-col items-center gap-1"> 
+<span class="material-icons-round">dashboard</span> 
+<span class="text-[10px] font-bold uppercase">Home</span> 
+</button> 
 
-        <!-- Bottom Navigation (Mobile) -->
-        <nav class="bottom-nav">
-            <button data-screen="dashboard" class="nav-btn active">
-                <i class="fas fa-home"></i>
-                <span>Dashboard</span>
-            </button>
-            <button data-screen="expenses" class="nav-btn">
-                <i class="fas fa-receipt"></i>
-                <span>Gastos</span>
-            </button>
-            <button data-screen="goals" class="nav-btn">
-                <i class="fas fa-bullseye"></i>
-                <span>Metas</span>
-            </button>
-            <button data-screen="investments" class="nav-btn">
-                <i class="fas fa-chart-line"></i>
-                <span>Investir</span>
-            </button>
-            <button data-screen="settings" class="nav-btn">
-                <i class="fas fa-cog"></i>
-                <span>Config</span>
-            </button>
-        </nav>
-    </div>
+<button onclick="router.navigate('portfolio')" class="mobile-nav-link flex flex-col items-center gap-1"> 
+<span class="material-icons-round">account_balance_wallet</span> 
+<span class="text-[10px] font-bold uppercase">Assets</span> 
+</button> 
 
-    <script src="script.js"></script>
-</body>
+<button onclick="router.navigate('learning')" class="mobile-nav-link flex flex-col items-center gap-1"> 
+<span class="material-icons-round">school</span> 
+<span class="text-[10px] font-bold uppercase">Learn</span> 
+</button> 
+
+<button onclick="router.navigate('settings')" class="mobile-nav-link flex flex-col items-center gap-1"> 
+<span class="material-icons-round">settings</span> 
+<span class="text-[10px] font-bold uppercase">Set</span> 
+</button> 
+
+</nav> 
+</div> 
+
+<script src="app.js"></script> 
+</body> 
 </html>
