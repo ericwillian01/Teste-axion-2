@@ -1,481 +1,184 @@
-// === STATE MANAGER ===
-const StateManager = {
-    data: {
-        salary: 0,
-        monthlyGoal: 0,
-        expenses: [],
-        categories: [
-            { name: 'Mercado', maxPercent: 30, color: '#EF4444' },
-            { name: 'Lazer', maxPercent: 15, color: '#F59E0B' },
-            { name: 'Transporte', maxPercent: 20, color: '#3B82F6' },
-            { name: 'Saúde', maxPercent: 10, color: '#10B981' },
-            { name: 'Educação', maxPercent: 10, color: '#8B5CF6' }
-        ],
-        goals: [],
-        investorProfile: null,
-        theme: 'dark'
-    },
+/**
+ * Axion Finance - Core Application
+ */
 
-    init() {
-        this.load();
-        this.bindEvents();
-        UIManager.renderAll();
-        Insights.generate();
-    },
+// 1. STATE MANAGEMENT
+const state = {
+user: {
+name: "Alex Vance",
+investorProfile: localStorage.getItem('axion_profile') || 'Moderate',
+salary: parseFloat(localStorage.getItem('axion_salary')) || 12000.00
+},
 
-    load() {
-        const saved = localStorage.getItem('axion-finance');
-        if (saved) {
-            this.data = { ...this.data, ...JSON.parse(saved) };
-        }
-        document.body.className = this.data.theme;
-    },
+expenses: JSON.parse(localStorage.getItem('axion_expenses')) || [
+{ id: 1, category: 'Mercado', value: 1200, date: '2024-03-01' },
+{ id: 2, category: 'Lazer', value: 800, date: '2024-03-05' },
+{ id: 3, category: 'Transporte', value: 450, date: '2024-03-10' }
+],
 
-    save() {
-        localStorage.setItem('axion-finance', JSON.stringify(this.data));
-    },
+categories: JSON.parse(localStorage.getItem('axion_categories')) || [
+{ name: 'Mercado', limit: 2000 },
+{ name: 'Lazer', limit: 1000 },
+{ name: 'Transporte', limit: 600 },
+{ name: 'Saúde', limit: 1500 },
+{ name: 'Educação', limit: 2000 }
+],
 
-    reset() {
-        if (confirm('Tem certeza? Isso apagará todos os seus dados.')) {
-            localStorage.removeItem('axion-finance');
-            this.data = {
-                salary: 0,
-                monthlyGoal: 0,
-                expenses: [],
-                categories: [...this.data.categories],
-                goals: [],
-                investorProfile: null,
-                theme: 'dark'
-            };
-            UIManager.renderAll();
-            Insights.generate();
-        }
-    }
+goals: JSON.parse(localStorage.getItem('axion_goals')) || [
+{ name: 'Reserva de Emergência', target: 25000, current: 18400 },
+{ name: 'Novo Carro', target: 60000, current: 42000 }
+]
 };
 
-// === UI MANAGER ===
-const UIManager = {
-    elements: {},
+function saveData() {
+localStorage.setItem('axion_expenses', JSON.stringify(state.expenses));
+localStorage.setItem('axion_categories', JSON.stringify(state.categories));
+localStorage.setItem('axion_goals', JSON.stringify(state.goals));
+localStorage.setItem('axion_profile', state.user.investorProfile);
+localStorage.setItem('axion_salary', state.user.salary);
+}
 
-    init() {
-        this.cacheElements();
-        this.bindNavigation();
-        this.hideLoading();
-    },
+// 2. LOGIC
+const logic = {
+getTotalSpent: () => state.expenses.reduce((acc, curr) => acc + curr.value, 0),
+getSpendingPercentage: () => (logic.getTotalSpent() / state.user.salary) * 100,
 
-    cacheElements() {
-        const ids = [
-            'balance-amount', 'balance-progress', 'balance-percent',
-            'total-spent', 'salary-value', 'monthly-goal',
-            'insights-list', 'expenses-list', 'goals-list',
-            'theme-toggle', 'settings-btn', 'add-expense-btn',
-            'add-category-btn', 'add-goal-btn', 'salary-input',
-            'goal-input', 'save-salary-btn', 'save-goal-btn',
-            'reset-data-btn', 'add-expense-modal', 'expense-form',
-            'expense-value', 'expense-category', 'expense-description',
-            'setup-profile-btn', 'investment-suggestion'
-        ];
-        ids.forEach(id => {
-            this.elements[id] = document.getElementById(id);
-        });
-    },
+getInsights: () => {
+const percent = logic.getSpendingPercentage();
 
-    bindNavigation() {
-        // Screen navigation
-        document.querySelectorAll('[data-screen]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.switchScreen(e.currentTarget.dataset.screen);
-            });
-        });
+if (percent > 90) return "Alerta Crítico: Você atingiu 90% do seu orçamento mensal.";
+if (percent > 70) return "Atenção: Seus gastos estão acelerados este mês. Revise seus custos.";
 
-        // Bottom nav
-        document.querySelectorAll('.bottom-nav .nav-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.switchScreen(e.currentTarget.dataset.screen);
-                document.querySelectorAll('.bottom-nav .nav-btn').forEach(b => b.classList.remove('active'));
-                e.currentTarget.classList.add('active');
-            });
-        });
-
-        // Settings button
-        this.elements['settings-btn'].addEventListener('click', () => {
-            this.switchScreen('settings');
-        });
-    },
-
-    switchScreen(screenName) {
-        document.querySelectorAll('.screen').forEach(screen => {
-            screen.classList.remove('active');
-        });
-        document.getElementById(screenName).classList.add('active');
-    },
-
-    hideLoading() {
-        setTimeout(() => {
-            document.getElementById('loading').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('loading').style.display = 'none';
-            }, 500);
-        }, 2000);
-    },
-
-    renderAll() {
-        this.renderDashboard();
-        this.renderExpenses();
-        this.renderGoals();
-        this.renderCategories();
-        this.renderSettings();
-        ChartManager.renderExpensesChart();
-    },
-
-    renderDashboard() {
-        const { salary, expenses, monthlyGoal } = StateManager.data;
-        const totalSpent = expenses.reduce((sum, exp) => sum + exp.value, 0);
-        const balance = salary - totalSpent;
-        const percentUsed = salary ? (totalSpent / salary * 100) : 0;
-
-        // Format currency
-        const formatCurrency = (value) => {
-            return new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-            }).format(value);
-        };
-
-        this.elements['balance-amount'].textContent = formatCurrency(balance);
-        this.elements['total-spent'].textContent = formatCurrency(totalSpent);
-        this.elements['salary-value'].textContent = formatCurrency(salary);
-        this.elements['monthly-goal'].textContent = formatCurrency(monthlyGoal);
-
-        // Progress bar
-        const progressFill = this.elements['balance-progress'];
-        const progressText = this.elements['balance-percent'];
-        progressFill.style.width = `${Math.min(percentUsed, 100)}%`;
-        progressText.textContent = `${Math.round(percentUsed)}%`;
-
-        // Status colors
-        const statusIndicator = document.querySelector('.status-indicator');
-        statusIndicator.className = `status-indicator ${percentUsed < 70 ? 'good' : percentUsed < 90 ? 'warning' : 'danger'}`;
-    },
-
-    renderExpenses() {
-        const { expenses } = StateManager.data;
-        const container = this.elements['expenses-list'];
-
-        if (!expenses.length) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-receipt"></i>
-                    <h3>Nenhum gasto registrado</h3>
-                    <p>Adicione seu primeiro gasto clicando no botão +</p>
-                </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = expenses.map(exp => `
-            <div class="expense-item">
-                <div class="expense-info">
-                    <div class="expense-category">${exp.category}</div>
-                    ${exp.description ? `<div class="expense-description">${exp.description}</div>` : ''}
-                </div>
-                <div class="expense-amount">
-                    ${this.formatCurrency(exp.value)}
-                </div>
-            </div>
-        `).join('');
-    },
-
-    renderGoals() {
-        const { goals } = StateManager.data;
-        const container = this.elements['goals-list'];
-
-        if (!goals.length) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-bullseye"></i>
-                    <h3>Nenhuma meta criada</h3>
-                    <p>Crie metas para se motivar financeiramente</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Implementation for goals rendering
-        container.innerHTML = goals.map(goal => `
-            <div class="goal-item">
-                <div>
-                    <div style="font-weight: 600; margin-bottom: 4px;">${goal.name}</div>
-                    <div style="font-size: 14px; opacity: 0.8;">${this.formatCurrency(goal.current)} / ${this.formatCurrency(goal.target)}</div>
-                </div>
-                <div class="goal-progress">
-                    <div class="goal-progress-bar">
-                        <div class="goal-progress-fill" style="width: ${Math.min((goal.current / goal.target) * 100, 100)}%"></div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-    },
-
-    renderCategories() {
-        const select = this.elements['expense-category'];
-        select.innerHTML = '<option value="">Selecione...</option>' + 
-            StateManager.data.categories.map(cat => 
-                `<option value="${cat.name}" data-color="${cat.color}">${cat.name} (${cat.maxPercent}% máx)</option>`
-            ).join('');
-    },
-
-    renderSettings() {
-        this.elements['salary-input'].value = StateManager.data.salary;
-        this.elements['goal-input'].value = StateManager.data.monthlyGoal;
-    },
-
-    formatCurrency(value) {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(value);
-    }
+return "Desempenho Excelente: Suas finanças estão sob controle absoluto.";
+}
 };
 
-// === CHART MANAGER ===
-const ChartManager = {
-    canvas: null,
-    ctx: null,
+// 3. UI
+const ui = {
 
-    init() {
-        this.canvas = document.getElementById('expenses-chart');
-        this.ctx = this.canvas.getContext('2d');
-        this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
-    },
+renderDashboard: () => {
+const main = document.getElementById('main-content');
+const spent = logic.getTotalSpent();
+const percent = logic.getSpendingPercentage().toFixed(1);
 
-    resizeCanvas() {
-        const rect = this.canvas.getBoundingClientRect();
-        this.canvas.width = rect.width * window.devicePixelRatio;
-        this.canvas.height = 250 * window.devicePixelRatio;
-        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    },
+main.innerHTML = `
+<div class="p-6 md:p-12 animate-in">
 
-    renderExpensesChart() {
-        const { expenses, categories } = StateManager.data;
-        
-        // Calculate category totals
-        const categoryTotals = {};
-        categories.forEach(cat => {
-            categoryTotals[cat.name] = expenses
-                .filter(exp => exp.category === cat.name)
-                .reduce((sum, exp) => sum + exp.value, 0);
-        });
+<header class="mb-10 flex justify-between items-end">
+<div>
+<h2 class="text-3xl font-black mb-2 italic">Visão Geral</h2>
+<p class="text-gray-500">Seu centro de comando financeiro.</p>
+</div>
+</header>
 
-        // Clear canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
 
-        // Draw pie chart
-        const centerX = this.canvas.width / window.devicePixelRatio / 2;
-        const centerY = 120;
-        const radius = 90;
+<div class="bg-[#161616] border border-white/5 p-8 rounded-3xl relative overflow-hidden">
+<p class="text-gray-500 text-xs uppercase tracking-widest mb-2">Saldo Restante</p>
+<h3 class="text-4xl font-black italic">R$ ${(state.user.salary - spent).toLocaleString()}</h3>
+</div>
 
-        let startAngle = 0;
-        const total = Object.values(categoryTotals).reduce((sum, val) => sum + val, 0);
+<div class="bg-[#161616] border border-white/5 p-8 rounded-3xl">
+<p class="text-gray-500 text-xs uppercase tracking-widest mb-2">Gasto Mensal</p>
+<h3 class="text-4xl font-black italic">R$ ${spent.toLocaleString()}</h3>
+<div class="mt-4 w-full bg-white/5 h-2 rounded-full overflow-hidden">
+<div class="bg-[#FF3B3B] h-full" style="width: ${percent}%"></div>
+</div>
+<p class="mt-2 text-[10px] text-gray-500 uppercase">${percent}% do salário utilizado</p>
+</div>
 
-        Object.entries(categoryTotals).forEach(([category, value]) => {
-            if (value === 0) return;
-            
-            const sliceAngle = (value / total) * 2 * Math.PI;
-            const categoryData = categories.find(cat => cat.name === category);
-            const color = categoryData ? categoryData.color : '#6B7280';
+<div class="bg-[#FF3B3B] p-8 rounded-3xl text-white">
+<p class="text-white/60 text-xs uppercase tracking-widest mb-2">Axion Insight</p>
+<p class="font-bold text-lg leading-tight">"${logic.getInsights()}"</p>
+</div>
 
-            this.ctx.beginPath();
-            this.ctx.moveTo(centerX, centerY);
-            this.ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
-            this.ctx.closePath();
-            this.ctx.fillStyle = color;
-            this.ctx.fill();
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-            this.ctx.lineWidth = 2;
-            this.ctx.stroke();
+</div>
 
-            startAngle += sliceAngle;
-        });
+<div class="bg-[#161616] p-8 rounded-3xl border border-white/5">
+<h4 class="text-xl font-bold mb-6 italic tracking-tight text-center">Distribuição</h4>
+<div class="h-64 relative">
+<canvas id="mainChart"></canvas>
+</div>
+</div>
 
-        // Draw center circle
-        this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY, 40, 0, 2 * Math.PI);
-        this.ctx.fillStyle = 'rgba(26, 26, 26, 0.8)';
-        this.ctx.fill();
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        this.ctx.lineWidth = 2;
-        this.ctx.stroke();
+</div>
+`;
 
-        // Draw total text
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = 'bold 18px Inter, sans-serif';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(
-            total > 0 ? UIManager.formatCurrency(total) : 'R$ 0,00',
-            centerX,
-            centerY
-        );
-    }
-};
+ui.initChart();
+},
 
-// === INSIGHTS ENGINE ===
-const Insights = {
-    generate() {
-        const { salary, expenses, categories, monthlyGoal } = StateManager.data;
-        const totalSpent = expenses.reduce((sum, exp) => sum + exp.value, 0);
-        const percentUsed = salary ? (totalSpent / salary * 100) : 0;
-        const container = document.getElementById('insights-list');
+initChart: () => {
+const ctx = document.getElementById('mainChart')?.getContext('2d');
+if (!ctx) return;
 
-        let insights = [];
-
-        // Salary usage insight
-        if (salary > 0) {
-            if (percentUsed < 50) {
-                insights.push({
-                    text: `Excelente! Você usou apenas ${Math.round(percentUsed)}% do seu salário.`,
-                    type: 'good'
-                });
-            } else if (percentUsed < 80) {
-                insights.push({
-                    text: `Cuidado: você já gastou ${Math.round(percentUsed)}% do salário.`,
-                    type: 'warning'
-                });
-            } else {
-                insights.push({
-                    text: `⚠️ Você gastou ${Math.round(percentUsed)}% do seu salário. Revise seus gastos!`,
-                    type: 'danger'
-                });
-            }
-        }
-
-        // Category limit insights
-        categories.forEach(category => {
-            const categorySpent = expenses
-                .filter(exp => exp.category === category.name)
-                .reduce((sum, exp) => sum + exp.value, 0);
-            const categoryLimit = (salary * category.maxPercent) / 100;
-            
-            if (categorySpent > categoryLimit) {
-                insights.push({
-                    text: `Você ultrapassou o limite de ${category.name} em ${Math.round((categorySpent / categoryLimit - 1) * 100)}%`,
-                    type: 'danger'
-                });
-            }
-        });
-
-        // Goal progress
-        if (monthlyGoal > 0) {
-            const saved = salary - totalSpent;
-            const goalProgress = Math.min((saved / monthlyGoal) * 100, 100);
-            insights.push({
-                text: `Economia: ${Math.round(goalProgress)}% da meta de ${UIManager.formatCurrency(monthlyGoal)}`,
-                type: goalProgress >= 100 ? 'good' : 'warning'
-            });
-        }
-
-        // Empty state
-        if (!insights.length) {
-            insights.push({
-                text: 'Configure seu salário para insights personalizados',
-                type: 'warning'
-            });
-        }
-
-        // Render insights
-        container.innerHTML = insights.slice(0, 3).map(insight => `
-            <div class="insight-item ${insight.type}">
-                <i class="fas fa-${insight.type === 'good' ? 'check-circle' : insight.type === 'warning' ? 'exclamation-triangle' : 'times-circle'}"></i>
-                <span>${insight.text}</span>
-            </div>
-        `).join('');
-    }
-};
-
-// === EVENT HANDLERS ===
-const EventHandlers = {
-    init() {
-        // Theme toggle
-        document.getElementById('theme-toggle').addEventListener('click', () => {
-            StateManager.data.theme = StateManager.data.theme === 'dark' ? 'light' : 'dark';
-            document.body.className = StateManager.data.theme;
-            StateManager.save();
-        });
-
-        // Add expense modal
-        document.getElementById('add-expense-btn').addEventListener('click', () => {
-            document.getElementById('add-expense-modal').classList.add('active');
-        });
-
-        // Close modal
-        document.querySelector('.modal-close').addEventListener('click', () => {
-            document.getElementById('add-expense-modal').classList.remove('active');
-        });
-
-        // Expense form
-        document.getElementById('expense-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.addExpense();
-        });
-
-        // Settings
-        document.getElementById('save-salary-btn').addEventListener('click', () => {
-            StateManager.data.salary = parseFloat(document.getElementById('salary-input').value) || 0;
-            StateManager.save();
-            UIManager.renderAll();
-            Insights.generate();
-            UIManager.switchScreen('dashboard');
-        });
-
-        document.getElementById('save-goal-btn').addEventListener('click', () => {
-            StateManager.data.monthlyGoal = parseFloat(document.getElementById('goal-input').value) || 0;
-            StateManager.save();
-            UIManager.renderAll();
-            Insights.generate();
-        });
-
-        document.getElementById('reset-data-btn').addEventListener('click', () => {
-            StateManager.reset();
-        });
-    },
-
-    addExpense() {
-        const value = parseFloat(document.getElementById('expense-value').value);
-        const category = document.getElementById('expense-category').value;
-        const description = document.getElementById('expense-description').value;
-
-        if (value && category) {
-            StateManager.data.expenses.unshift({
-                id: Date.now(),
-                value,
-                category,
-                description,
-                date: new Date().toISOString()
-            });
-
-            StateManager.save();
-            UIManager.renderAll();
-            Insights.generate();
-            ChartManager.renderExpensesChart();
-            
-            // Reset form
-            document.getElementById('expense-form').reset();
-            document.getElementById('add-expense-modal').classList.remove('active');
-        }
-    }
-};
-
-// === INITIALIZATION ===
-document.addEventListener('DOMContentLoaded', () => {
-    StateManager.init();
-    UIManager.init();
-    ChartManager.init();
-    EventHandlers.init();
-    
-    // Auto-save on storage change
-    window.addEventListener('beforeunload', () => {
-        StateManager.save();
-    });
+new Chart(ctx, {
+type: 'doughnut',
+data: {
+labels: state.categories.map(c => c.name),
+datasets: [{
+data: state.categories.map(c =>
+state.expenses
+.filter(e => e.category === c.name)
+.reduce((a,b) => a + b.value, 0)
+),
+backgroundColor: ['#FF3B3B','#333','#1E1E1E','#444','#555'],
+borderWidth: 0
+}]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+plugins: { legend: { display: false } },
+cutout: '85%'
+}
 });
+},
+
+renderPortfolio: () => {
+document.getElementById('main-content').innerHTML = `
+<div class="p-6 md:p-12 animate-in text-center">
+<h2 class="text-3xl font-black mb-4">Portfólio em Breve</h2>
+</div>
+`;
+},
+
+renderLearning: () => {
+document.getElementById('main-content').innerHTML = `
+<div class="p-6 md:p-12 animate-in">
+<h2 class="text-3xl font-black mb-10 italic">Learning Hub</h2>
+</div>
+`;
+},
+
+renderSettings: () => {
+document.getElementById('main-content').innerHTML = `
+<div class="p-6 md:p-12 animate-in">
+<h2 class="text-3xl font-black mb-10 italic">Ajustes</h2>
+<button onclick="router.resetApp()">Apagar Tudo</button>
+</div>
+`;
+}
+};
+
+// 4. ROUTER
+const router = {
+navigate: (page) => {
+switch(page) {
+case 'dashboard': ui.renderDashboard(); break;
+case 'portfolio': ui.renderPortfolio(); break;
+case 'learning': ui.renderLearning(); break;
+case 'settings': ui.renderSettings(); break;
+default: ui.renderDashboard();
+}
+},
+
+resetApp: () => {
+if(confirm("Tem certeza?")) {
+localStorage.clear();
+location.reload();
+}
+}
+};
+
+// INIT
+document.addEventListener('DOMContentLoaded', () => router.navigate('dashboard'));
