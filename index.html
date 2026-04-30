@@ -1,104 +1,164 @@
-<!DOCTYPE html> 
-<html lang="pt-br"> 
-<head> 
-<meta charset="UTF-8"> 
-<meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-<title>Axion Finance | Intelligent Precision</title> 
-<link rel="stylesheet" href="style.css"> 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet"> 
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"> 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
-<script src="https://cdn.tailwindcss.com"></script> 
-<script> 
-tailwind.config = { 
-theme: { 
-extend: { 
-colors: { 
-primary: '#FF3B3B', 
-dark: '#0D0D0D', 
-card: '#161616', 
-}, 
-fontFamily: { 
-inter: ['Inter', 'sans-serif'], 
-} 
-} 
-} 
-} 
-</script> 
-</head> 
+<script>
+/* =========================
+   AXION FINANCE ENGINE FINAL
+========================= */
 
-<body class="bg-black text-white font-inter overflow-x-hidden"> 
+// STORAGE
+const storage = {
+    get: (key, fallback) => JSON.parse(localStorage.getItem(key)) || fallback,
+    set: (key, value) => localStorage.setItem(key, JSON.stringify(value))
+};
 
-<!-- App Shell --> 
-<div id="app" class="flex flex-col md:flex-row min-h-screen"> 
+// STATE
+let salary = storage.get("salary", 0);
+let expenses = storage.get("expenses", []);
+let investments = storage.get("investments", []);
+let goals = storage.get("goals", []);
 
-<!-- Desktop Sidebar --> 
-<nav class="hidden md:flex flex-col w-64 fixed h-full border-r border-white/10 bg-[#0D0D0D] z-50"> 
-<div class="p-8"> 
-<h1 class="text-2xl font-black italic text-[#FF3B3B] tracking-tighter">AXION</h1> 
-<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mt-1">Intelligent Precision</p> 
-</div> 
+// HELPERS
+const format = (v) => "$" + Number(v).toLocaleString("en-US", { minimumFractionDigits: 2 });
 
-<div class="flex-1 px-4 space-y-2" id="desktop-nav"> 
-<button onclick="router.navigate('dashboard')" class="nav-link w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all"> 
-<span class="material-icons-round">dashboard</span> Dashboard 
-</button> 
+// CONTROL PANEL
+const panel = document.createElement("div");
+panel.className = "fixed right-4 bottom-24 z-50 glass-card p-4 rounded-xl text-xs space-y-2";
+panel.innerHTML = `
+<input id="salaryInput" placeholder="Salary" type="number" class="w-full bg-black/40 p-2 rounded"/>
+<input id="expenseName" placeholder="Expense name" class="w-full bg-black/40 p-2 rounded"/>
+<input id="expenseValue" placeholder="Value" type="number" class="w-full bg-black/40 p-2 rounded"/>
+<input id="expenseCategory" placeholder="Category" class="w-full bg-black/40 p-2 rounded"/>
+<button id="addExpense" class="w-full bg-red-500/80 p-2 rounded">Add Expense</button>
 
-<button onclick="router.navigate('portfolio')" class="nav-link w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all"> 
-<span class="material-icons-round">account_balance_wallet</span> Portfólio 
-</button> 
+<input id="investValue" placeholder="Invest" type="number" class="w-full bg-black/40 p-2 rounded"/>
+<button id="addInvest" class="w-full bg-blue-500/80 p-2 rounded">Add Invest</button>
 
-<button onclick="router.navigate('learning')" class="nav-link w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all"> 
-<span class="material-icons-round">school</span> Aprender 
-</button> 
+<input id="goalName" placeholder="Goal" class="w-full bg-black/40 p-2 rounded"/>
+<input id="goalValue" placeholder="Target" type="number" class="w-full bg-black/40 p-2 rounded"/>
+<button id="addGoal" class="w-full bg-green-500/80 p-2 rounded">Add Goal</button>
+`;
+document.body.appendChild(panel);
 
-<button onclick="router.navigate('settings')" class="nav-link w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all"> 
-<span class="material-icons-round">settings</span> Ajustes 
-</button> 
-</div> 
+// CALC
+function calc() {
+    const totalExpenses = expenses.reduce((a, b) => a + b.value, 0);
+    const totalInvest = investments.reduce((a, b) => a + b.value, 0);
+    const balance = salary - totalExpenses;
+    return { totalExpenses, totalInvest, balance };
+}
 
-<div class="p-6 border-t border-white/10"> 
-<div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5"> 
-<div class="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FF3B3B] to-red-900 flex items-center justify-center font-bold">AV</div> 
-<div class="overflow-hidden"> 
-<p class="text-sm font-bold truncate">Alex Vance</p> 
-<p id="user-tier-label" class="text-[10px] text-gray-500 uppercase">Premium Tier</p> 
-</div> 
-</div> 
-</div> 
-</nav> 
+// SCORE
+function calcScore(balance, totalExpenses) {
+    if (salary === 0) return 0;
 
-<!-- Main Content Area --> 
-<main id="main-content" class="flex-1 md:ml-64 pb-24 md:pb-0 min-h-screen bg-[#080808]"> 
-<!-- As telas serão injetadas aqui via JS --> 
-</main> 
+    const savingsRate = (balance / salary) * 100;
+    let score = 50 + savingsRate;
 
-<!-- Mobile Bottom Nav --> 
-<nav class="md:hidden fixed bottom-0 left-0 w-full bg-[#0D0D0D]/90 backdrop-blur-xl border-t border-white/10 flex justify-around items-center h-20 px-4 z-50"> 
+    if (totalExpenses > salary) score -= 30;
+    if (balance < 0) score -= 40;
 
-<button onclick="router.navigate('dashboard')" class="mobile-nav-link flex flex-col items-center gap-1"> 
-<span class="material-icons-round">dashboard</span> 
-<span class="text-[10px] font-bold uppercase">Home</span> 
-</button> 
+    return Math.max(0, Math.min(100, Math.round(score)));
+}
 
-<button onclick="router.navigate('portfolio')" class="mobile-nav-link flex flex-col items-center gap-1"> 
-<span class="material-icons-round">account_balance_wallet</span> 
-<span class="text-[10px] font-bold uppercase">Assets</span> 
-</button> 
+// INSIGHTS
+function generateInsights(balance, totalExpenses) {
+    if (balance < 0) return "⚠️ You are overspending.";
+    if (balance > salary * 0.4) return "🚀 Strong savings detected.";
+    if (totalExpenses > salary * 0.7) return "📉 Expenses too high.";
+    return "✅ Healthy financial behavior.";
+}
 
-<button onclick="router.navigate('learning')" class="mobile-nav-link flex flex-col items-center gap-1"> 
-<span class="material-icons-round">school</span> 
-<span class="text-[10px] font-bold uppercase">Learn</span> 
-</button> 
+// RENDER
+function render() {
+    const { totalExpenses, totalInvest, balance } = calc();
+    const score = calcScore(balance, totalExpenses);
 
-<button onclick="router.navigate('settings')" class="mobile-nav-link flex flex-col items-center gap-1"> 
-<span class="material-icons-round">settings</span> 
-<span class="text-[10px] font-bold uppercase">Set</span> 
-</button> 
+    // BALANCE
+    document.querySelector(".font-metric-xl").innerText = format(balance);
 
-</nav> 
-</div> 
+    // INCOME
+    document.getElementById("incomeValue").innerText = format(salary);
 
-<script src="app.js"></script> 
-</body> 
-</html>
+    // EXPENSES
+    document.getElementById("expenseValueUI").innerText = format(totalExpenses);
+
+    // SCORE
+    document.querySelector(".text-4xl").innerText = score;
+
+    const label = document.querySelector(".text-[10px]");
+    if (score > 70) label.innerText = "Safe Zone";
+    else if (score > 40) label.innerText = "Medium Risk";
+    else label.innerText = "Danger Zone";
+
+    // INSIGHT
+    document.getElementById("insightText").innerText =
+        generateInsights(balance, totalExpenses);
+
+    // PROJECTION
+    const projection = balance * 6;
+    document.querySelector(".text-sm.text-on-surface-variant").innerText =
+        "Projected: " + format(projection);
+
+    // VISUAL FEEDBACK
+    if (balance < 0) {
+        document.body.style.border = "2px solid red";
+    } else {
+        document.body.style.border = "none";
+    }
+
+    // SAVE
+    storage.set("salary", salary);
+    storage.set("expenses", expenses);
+    storage.set("investments", investments);
+    storage.set("goals", goals);
+}
+
+// EVENTS
+
+document.getElementById("salaryInput").addEventListener("change", (e) => {
+    salary = Number(e.target.value);
+    render();
+});
+
+document.getElementById("addExpense").onclick = () => {
+    const name = document.getElementById("expenseName").value;
+    const value = Number(document.getElementById("expenseValue").value);
+    const category = document.getElementById("expenseCategory").value;
+
+    if (!name || !value) return;
+
+    expenses.push({ name, value, category });
+
+    document.getElementById("expenseName").value = "";
+    document.getElementById("expenseValue").value = "";
+    document.getElementById("expenseCategory").value = "";
+
+    render();
+};
+
+document.getElementById("addInvest").onclick = () => {
+    const value = Number(document.getElementById("investValue").value);
+    if (!value) return;
+
+    investments.push({ value });
+
+    document.getElementById("investValue").value = "";
+
+    render();
+};
+
+document.getElementById("addGoal").onclick = () => {
+    const name = document.getElementById("goalName").value;
+    const target = Number(document.getElementById("goalValue").value);
+
+    if (!name || !target) return;
+
+    goals.push({ name, target, current: 0 });
+
+    document.getElementById("goalName").value = "";
+    document.getElementById("goalValue").value = "";
+
+    render();
+};
+
+// INIT
+render();
+</script>
