@@ -1,164 +1,898 @@
-<script>
-/* =========================
-   AXION FINANCE ENGINE FINAL
-========================= */
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Axion Finance — Controle Inteligente</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body data-theme="dark">
 
-// STORAGE
-const storage = {
-    get: (key, fallback) => JSON.parse(localStorage.getItem(key)) || fallback,
-    set: (key, value) => localStorage.setItem(key, JSON.stringify(value))
-};
+  <!-- ===== SPLASH SCREEN ===== -->
+  <div id="splash" class="splash">
+    <div class="splash-inner">
+      <div class="splash-logo">
+        <span class="splash-icon">⬡</span>
+        <span class="splash-name">AXION</span>
+      </div>
+      <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+      <p class="splash-sub">Inicializando inteligência financeira...</p>
+    </div>
+  </div>
 
-// STATE
-let salary = storage.get("salary", 0);
-let expenses = storage.get("expenses", []);
-let investments = storage.get("investments", []);
-let goals = storage.get("goals", []);
+  <!-- ===== ONBOARDING MODAL ===== -->
+  <div id="onboarding-overlay" class="modal-overlay hidden">
+    <div class="modal-box onboarding-box">
+      <div class="onboarding-step active" data-step="1">
+        <div class="onboard-icon">💼</div>
+        <h2>Bem-vindo ao Axion Finance</h2>
+        <p>Seu assistente financeiro inteligente. Vamos configurar seu perfil em 3 passos rápidos.</p>
+        <button class="btn-primary" onclick="State.nextOnboarding()">Começar →</button>
+      </div>
+      <div class="onboarding-step" data-step="2">
+        <div class="onboard-icon">💰</div>
+        <h2>Qual é o seu salário mensal?</h2>
+        <p>Isso nos permite calcular seus limites e sugerir investimentos ideais.</p>
+        <div class="input-group">
+          <span class="input-prefix">R$</span>
+          <input type="number" id="onboard-salary" placeholder="0,00" min="0" />
+        </div>
+        <button class="btn-primary" onclick="State.nextOnboarding()">Próximo →</button>
+      </div>
+      <div class="onboarding-step" data-step="3">
+        <div class="onboard-icon">🎯</div>
+        <h2>Qual é seu perfil de investidor?</h2>
+        <p>Isso personaliza as sugestões de investimento para você.</p>
+        <div class="profile-options">
+          <label class="profile-opt">
+            <input type="radio" name="profile" value="conservador" />
+            <div class="profile-card">
+              <span class="profile-emoji">🛡️</span>
+              <strong>Conservador</strong>
+              <small>Segurança acima de tudo</small>
+            </div>
+          </label>
+          <label class="profile-opt">
+            <input type="radio" name="profile" value="moderado" checked />
+            <div class="profile-card">
+              <span class="profile-emoji">⚖️</span>
+              <strong>Moderado</strong>
+              <small>Equilíbrio entre risco e retorno</small>
+            </div>
+          </label>
+          <label class="profile-opt">
+            <input type="radio" name="profile" value="arrojado" />
+            <div class="profile-card">
+              <span class="profile-emoji">🚀</span>
+              <strong>Arrojado</strong>
+              <small>Maior risco, maior retorno</small>
+            </div>
+          </label>
+        </div>
+        <button class="btn-primary" onclick="State.finishOnboarding()">Começar a usar ✓</button>
+      </div>
+      <div class="onboard-dots">
+        <span class="dot active" data-dot="1"></span>
+        <span class="dot" data-dot="2"></span>
+        <span class="dot" data-dot="3"></span>
+      </div>
+    </div>
+  </div>
 
-// HELPERS
-const format = (v) => "$" + Number(v).toLocaleString("en-US", { minimumFractionDigits: 2 });
+  <!-- ===== QUICK SETTINGS DRAWER ===== -->
+  <div id="settings-drawer-overlay" class="drawer-overlay hidden" onclick="UI.closeSettingsDrawer()"></div>
+  <div id="settings-drawer" class="settings-drawer hidden">
+    <div class="drawer-header">
+      <div class="drawer-logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">AXION</span>
+      </div>
+      <button class="modal-close" onclick="UI.closeSettingsDrawer()">✕</button>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-label">Aparência</div>
+      <div class="drawer-toggle-row">
+        <span>Modo escuro</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="drawer-theme-toggle" checked onchange="Logic.toggleThemeDrawer()" />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+      </div>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-label">Salário Mensal</div>
+      <div class="input-group" style="margin-top:6px">
+        <span class="input-prefix">R$</span>
+        <input type="number" id="drawer-salary" placeholder="0,00" />
+      </div>
+      <button class="btn-primary btn-sm" style="margin-top:10px;width:100%" onclick="Logic.saveDrawerSalary()">Salvar salário</button>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-label">Alertas</div>
+      <div class="drawer-toggle-row" style="margin-top:8px">
+        <span>Alerta de limites</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="drawer-alert-limit" checked onchange="Logic.saveDrawerAlerts()" />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+      </div>
+    </div>
+    <div class="drawer-section">
+      <button class="btn-ghost" style="width:100%" onclick="UI.closeSettingsDrawer(); UI.navigateTo('configuracoes')">⚙️ Configurações completas</button>
+    </div>
+  </div>
 
-// CONTROL PANEL
-const panel = document.createElement("div");
-panel.className = "fixed right-4 bottom-24 z-50 glass-card p-4 rounded-xl text-xs space-y-2";
-panel.innerHTML = `
-<input id="salaryInput" placeholder="Salary" type="number" class="w-full bg-black/40 p-2 rounded"/>
-<input id="expenseName" placeholder="Expense name" class="w-full bg-black/40 p-2 rounded"/>
-<input id="expenseValue" placeholder="Value" type="number" class="w-full bg-black/40 p-2 rounded"/>
-<input id="expenseCategory" placeholder="Category" class="w-full bg-black/40 p-2 rounded"/>
-<button id="addExpense" class="w-full bg-red-500/80 p-2 rounded">Add Expense</button>
+  <!-- ===== ADD INVESTMENT MODAL ===== -->
+  <div id="investment-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Novo Aporte</h3>
+        <button class="modal-close" onclick="UI.closeInvestmentModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>Ativo</label>
+          <input type="text" id="inv-asset" placeholder="Ex: Bitcoin, BOVA11, Tesouro Selic..." class="input-plain" />
+        </div>
+        <div class="form-row">
+          <label>Tipo</label>
+          <select id="inv-type" class="input-plain">
+            <option value="cripto">Criptomoeda</option>
+            <option value="acoes">Ações</option>
+            <option value="fii">FII</option>
+            <option value="etf">ETF</option>
+            <option value="renda-fixa">Renda Fixa</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Valor Aportado</label>
+          <div class="input-group">
+            <span class="input-prefix">R$</span>
+            <input type="number" id="inv-value" placeholder="0,00" min="0" step="0.01" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Quantidade (opcional)</label>
+          <input type="number" id="inv-qty" placeholder="Ex: 0.005 BTC, 10 cotas..." class="input-plain" step="any" />
+        </div>
+        <div class="form-row">
+          <label>Data</label>
+          <input type="date" id="inv-date" class="input-plain" />
+        </div>
+        <div class="form-row">
+          <label>Notas (opcional)</label>
+          <input type="text" id="inv-notes" placeholder="Ex: compra mensal, DCA..." class="input-plain" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="UI.closeInvestmentModal()">Cancelar</button>
+        <button class="btn-primary" onclick="Logic.addInvestment()">Registrar Aporte</button>
+      </div>
+    </div>
+  </div>
 
-<input id="investValue" placeholder="Invest" type="number" class="w-full bg-black/40 p-2 rounded"/>
-<button id="addInvest" class="w-full bg-blue-500/80 p-2 rounded">Add Invest</button>
+  <!-- ===== ADD EXPENSE MODAL ===== -->
+  <div id="expense-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Novo Gasto</h3>
+        <button class="modal-close" onclick="UI.closeExpenseModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>Valor</label>
+          <div class="input-group">
+            <span class="input-prefix">R$</span>
+            <input type="number" id="expense-value" placeholder="0,00" min="0" step="0.01" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Descrição</label>
+          <input type="text" id="expense-desc" placeholder="Ex: Supermercado, Uber..." class="input-plain" />
+        </div>
+        <div class="form-row">
+          <label>Categoria</label>
+          <select id="expense-cat" class="input-plain"></select>
+        </div>
+        <div class="form-row">
+          <label>Data</label>
+          <input type="date" id="expense-date" class="input-plain" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="UI.closeExpenseModal()">Cancelar</button>
+        <button class="btn-primary" onclick="Logic.addExpense()">Adicionar Gasto</button>
+      </div>
+    </div>
+  </div>
 
-<input id="goalName" placeholder="Goal" class="w-full bg-black/40 p-2 rounded"/>
-<input id="goalValue" placeholder="Target" type="number" class="w-full bg-black/40 p-2 rounded"/>
-<button id="addGoal" class="w-full bg-green-500/80 p-2 rounded">Add Goal</button>
-`;
-document.body.appendChild(panel);
+  <!-- ===== GOAL MODAL ===== -->
+  <div id="goal-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Nova Meta</h3>
+        <button class="modal-close" onclick="UI.closeGoalModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>Nome da Meta</label>
+          <input type="text" id="goal-name" placeholder="Ex: Viagem, Reserva de emergência..." class="input-plain" />
+        </div>
+        <div class="form-row">
+          <label>Valor Alvo</label>
+          <div class="input-group">
+            <span class="input-prefix">R$</span>
+            <input type="number" id="goal-target" placeholder="0,00" min="0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Valor já Guardado</label>
+          <div class="input-group">
+            <span class="input-prefix">R$</span>
+            <input type="number" id="goal-current" placeholder="0,00" min="0" value="0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Prazo (meses)</label>
+          <input type="number" id="goal-deadline" placeholder="Ex: 12" min="1" class="input-plain" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="UI.closeGoalModal()">Cancelar</button>
+        <button class="btn-primary" onclick="Logic.addGoal()">Criar Meta</button>
+      </div>
+    </div>
+  </div>
 
-// CALC
-function calc() {
-    const totalExpenses = expenses.reduce((a, b) => a + b.value, 0);
-    const totalInvest = investments.reduce((a, b) => a + b.value, 0);
-    const balance = salary - totalExpenses;
-    return { totalExpenses, totalInvest, balance };
-}
+  <!-- ===== CONFIRM MODAL ===== -->
+  <div id="confirm-modal" class="modal-overlay hidden">
+    <div class="modal-box confirm-box">
+      <div class="confirm-icon">⚠️</div>
+      <h3 id="confirm-title">Confirmar ação</h3>
+      <p id="confirm-text">Esta ação não pode ser desfeita.</p>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="UI.closeConfirm()">Cancelar</button>
+        <button class="btn-danger" id="confirm-ok-btn">Confirmar</button>
+      </div>
+    </div>
+  </div>
 
-// SCORE
-function calcScore(balance, totalExpenses) {
-    if (salary === 0) return 0;
+  <!-- ===== APP WRAPPER ===== -->
+  <div id="app" class="app hidden">
 
-    const savingsRate = (balance / salary) * 100;
-    let score = 50 + savingsRate;
+    <!-- SIDEBAR (Desktop) -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">AXION</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-page="dashboard">
+          <span class="nav-icon">◈</span><span class="nav-label">Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-page="gastos">
+          <span class="nav-icon">◉</span><span class="nav-label">Gastos</span>
+        </a>
+        <a href="#" class="nav-item" data-page="graficos">
+          <span class="nav-icon">◎</span><span class="nav-label">Gráficos</span>
+        </a>
+        <a href="#" class="nav-item" data-page="investimentos">
+          <span class="nav-icon">◇</span><span class="nav-label">Investimentos</span>
+        </a>
+        <a href="#" class="nav-item" data-page="metas">
+          <span class="nav-icon">◆</span><span class="nav-label">Metas</span>
+        </a>
+        <a href="#" class="nav-item" data-page="aprender">
+          <span class="nav-icon">○</span><span class="nav-label">Aprender</span>
+        </a>
+        <a href="#" class="nav-item" data-page="configuracoes">
+          <span class="nav-icon">◌</span><span class="nav-label">Configurações</span>
+        </a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="user-avatar" id="sidebar-avatar">A</div>
+        <div class="user-info">
+          <span class="user-name" id="sidebar-profile-name">Usuário</span>
+          <span class="user-role" id="sidebar-profile-type">Perfil Moderado</span>
+        </div>
+      </div>
+    </aside>
 
-    if (totalExpenses > salary) score -= 30;
-    if (balance < 0) score -= 40;
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
 
-    return Math.max(0, Math.min(100, Math.round(score)));
-}
+      <!-- MOBILE TOPBAR -->
+      <div class="mobile-topbar">
+        <div class="mobile-topbar-logo">
+          <span class="logo-icon">⬡</span>
+          <span class="logo-text">AXION</span>
+        </div>
+        <button class="hamburger-btn" id="hamburger-btn" onclick="UI.openSettingsDrawer()" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
 
-// INSIGHTS
-function generateInsights(balance, totalExpenses) {
-    if (balance < 0) return "⚠️ You are overspending.";
-    if (balance > salary * 0.4) return "🚀 Strong savings detected.";
-    if (totalExpenses > salary * 0.7) return "📉 Expenses too high.";
-    return "✅ Healthy financial behavior.";
-}
+      <!-- ===== PAGE: DASHBOARD ===== -->
+      <section class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-sub" id="dash-greeting">Bom dia — veja seu resumo financeiro</p>
+          </div>
+          <button class="hamburger-btn hamburger-desktop" onclick="UI.openSettingsDrawer()" aria-label="Menu">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
 
-// RENDER
-function render() {
-    const { totalExpenses, totalInvest, balance } = calc();
-    const score = calcScore(balance, totalExpenses);
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card kpi-glow-green">
+            <div class="kpi-label">Saldo Restante</div>
+            <div class="kpi-value kpi-value-green" id="kpi-balance">R$ 0,00</div>
+            <div class="kpi-sub" id="kpi-balance-pct">0% disponível</div>
+            <div class="kpi-card-bg-icon">💰</div>
+          </div>
+          <div class="kpi-card kpi-glow-red">
+            <div class="kpi-label">Total Gasto</div>
+            <div class="kpi-value kpi-value-red" id="kpi-spent">R$ 0,00</div>
+            <div class="kpi-sub" id="kpi-spent-pct">0% do salário</div>
+            <div class="kpi-card-bg-icon">💸</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Salário</div>
+            <div class="kpi-value" id="kpi-salary">R$ 0,00</div>
+            <div class="kpi-sub">Mensal</div>
+            <div class="kpi-card-bg-icon">🏦</div>
+          </div>
+          <div class="kpi-card kpi-score-card">
+            <div class="kpi-label">Score Financeiro</div>
+            <div class="kpi-value" id="kpi-score">—</div>
+            <div class="kpi-sub" id="kpi-score-label">Calculando...</div>
+            <div class="score-ring-wrap"><canvas id="score-ring" width="52" height="52"></canvas></div>
+          </div>
+        </div>
 
-    // BALANCE
-    document.querySelector(".font-metric-xl").innerText = format(balance);
+        <!-- Usage Bar -->
+        <div class="usage-section card">
+          <div class="usage-header">
+            <span class="usage-label">Utilização do salário</span>
+            <div class="usage-header-right">
+              <span class="usage-pct" id="usage-pct-text">0%</span>
+              <span class="usage-projection" id="usage-projection"></span>
+            </div>
+          </div>
+          <div class="usage-bar-track">
+            <div class="usage-bar-fill" id="usage-bar" style="width:0%"></div>
+          </div>
+          <div class="usage-legend">
+            <span class="legend-dot spent"></span><span>Gasto</span>
+            <span class="legend-dot left"></span><span>Disponível</span>
+            <span class="legend-dot invest" style="margin-left:8px"></span><span>Investido</span>
+          </div>
+        </div>
 
-    // INCOME
-    document.getElementById("incomeValue").innerText = format(salary);
+        <!-- Insights Grid -->
+        <div class="insights-grid" id="insights-grid">
+          <div class="insight-card card" id="insight-card">
+            <div class="insight-icon" id="insight-icon">🧠</div>
+            <div class="insight-content">
+              <div class="insight-tag">Inteligência Axion</div>
+              <p class="insight-text" id="insight-text">Adicione seu salário e registre gastos para ativar o assistente inteligente.</p>
+            </div>
+          </div>
+        </div>
 
-    // EXPENSES
-    document.getElementById("expenseValueUI").innerText = format(totalExpenses);
+        <!-- Projection Card -->
+        <div class="card projection-card" id="projection-card">
+          <div class="card-header">
+            <h3>📈 Projeção dos Próximos 3 Meses</h3>
+            <span class="proj-badge" id="proj-trend-badge"></span>
+          </div>
+          <div class="proj-months" id="proj-months"></div>
+        </div>
 
-    // SCORE
-    document.querySelector(".text-4xl").innerText = score;
+        <!-- Mini Chart + Recent -->
+        <div class="dash-bottom-grid">
+          <div class="card dash-chart-card">
+            <div class="card-header">
+              <h3>Distribuição por categoria</h3>
+            </div>
+            <div class="chart-wrap-sm">
+              <canvas id="dash-donut"></canvas>
+            </div>
+            <div id="dash-legend" class="dash-legend"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3>Últimas transações</h3>
+              <a href="#" class="link-sm" data-page="gastos">Ver todas</a>
+            </div>
+            <div id="recent-list" class="recent-list">
+              <div class="empty-state-sm">Nenhuma transação registrada.</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-    const label = document.querySelector(".text-[10px]");
-    if (score > 70) label.innerText = "Safe Zone";
-    else if (score > 40) label.innerText = "Medium Risk";
-    else label.innerText = "Danger Zone";
+      <!-- ===== PAGE: GASTOS ===== -->
+      <section class="page" id="page-gastos">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Gastos</h1>
+            <p class="page-sub">Gerencie despesas e aportes em investimentos</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn-primary btn-sm" id="gastos-add-btn" onclick="UI.openExpenseModal()">+ Novo Gasto</button>
+          </div>
+        </div>
 
-    // INSIGHT
-    document.getElementById("insightText").innerText =
-        generateInsights(balance, totalExpenses);
+        <!-- Tabs -->
+        <div class="tabs-row">
+          <button class="tab-btn active" data-tab="despesas" onclick="UI.switchGastosTab('despesas')">◉ Despesas</button>
+          <button class="tab-btn" data-tab="portfolio" onclick="UI.switchGastosTab('portfolio')">◇ Portfólio</button>
+        </div>
 
-    // PROJECTION
-    const projection = balance * 6;
-    document.querySelector(".text-sm.text-on-surface-variant").innerText =
-        "Projected: " + format(projection);
+        <!-- TAB: DESPESAS -->
+        <div id="tab-despesas" class="tab-content active-tab">
+          <!-- Category Limits -->
+          <div class="card section-card">
+            <div class="card-header">
+              <h3>Categorias & Limites</h3>
+              <button class="btn-ghost btn-sm" onclick="UI.toggleAddCategory()">+ Categoria</button>
+            </div>
+            <div id="add-category-form" class="hidden add-cat-form">
+              <input type="text" id="new-cat-name" placeholder="Nome da categoria" class="input-plain" />
+              <input type="number" id="new-cat-limit" placeholder="Limite %" min="0" max="100" class="input-plain" style="width:100px" />
+              <button class="btn-primary btn-sm" onclick="Logic.addCategory()">Adicionar</button>
+            </div>
+            <div id="category-list" class="category-list"></div>
+          </div>
 
-    // VISUAL FEEDBACK
-    if (balance < 0) {
-        document.body.style.border = "2px solid red";
-    } else {
-        document.body.style.border = "none";
-    }
+          <!-- Filters -->
+          <div class="filters-row card">
+            <div class="filter-group">
+              <label>Categoria</label>
+              <select id="filter-cat" class="input-plain input-sm" onchange="UI.renderExpenses()">
+                <option value="all">Todas</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Período</label>
+              <select id="filter-period" class="input-plain input-sm" onchange="UI.renderExpenses()">
+                <option value="all">Todo período</option>
+                <option value="month" selected>Este mês</option>
+                <option value="week">Esta semana</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Ordenar</label>
+              <select id="filter-sort" class="input-plain input-sm" onchange="UI.renderExpenses()">
+                <option value="date-desc">Mais recente</option>
+                <option value="date-asc">Mais antigo</option>
+                <option value="value-desc">Maior valor</option>
+                <option value="value-asc">Menor valor</option>
+              </select>
+            </div>
+          </div>
 
-    // SAVE
-    storage.set("salary", salary);
-    storage.set("expenses", expenses);
-    storage.set("investments", investments);
-    storage.set("goals", goals);
-}
+          <!-- Expenses List -->
+          <div class="card">
+            <div id="expense-list" class="expense-list">
+              <div class="empty-state">
+                <span class="empty-icon">◎</span>
+                <p>Nenhum gasto registrado ainda.</p>
+                <button class="btn-ghost btn-sm" onclick="UI.openExpenseModal()">Adicionar primeiro gasto</button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-// EVENTS
+        <!-- TAB: PORTFÓLIO -->
+        <div id="tab-portfolio" class="tab-content hidden-tab">
+          <!-- Portfolio KPIs -->
+          <div class="kpi-grid kpi-grid-3">
+            <div class="kpi-card">
+              <div class="kpi-label">Total Aportado</div>
+              <div class="kpi-value" id="port-total">R$ 0,00</div>
+              <div class="kpi-sub">Todos os aportes</div>
+            </div>
+            <div class="kpi-card kpi-accent">
+              <div class="kpi-label">Aportes este mês</div>
+              <div class="kpi-value" id="port-month">R$ 0,00</div>
+              <div class="kpi-sub" id="port-month-count">0 operações</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Ativos diferentes</div>
+              <div class="kpi-value" id="port-assets">0</div>
+              <div class="kpi-sub">Na carteira</div>
+            </div>
+          </div>
 
-document.getElementById("salaryInput").addEventListener("change", (e) => {
-    salary = Number(e.target.value);
-    render();
-});
+          <!-- Portfolio filters -->
+          <div class="filters-row card">
+            <div class="filter-group">
+              <label>Tipo</label>
+              <select id="port-filter-type" class="input-plain input-sm" onchange="UI.renderPortfolio()">
+                <option value="all">Todos</option>
+                <option value="cripto">Criptomoeda</option>
+                <option value="acoes">Ações</option>
+                <option value="fii">FII</option>
+                <option value="etf">ETF</option>
+                <option value="renda-fixa">Renda Fixa</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Período</label>
+              <select id="port-filter-period" class="input-plain input-sm" onchange="UI.renderPortfolio()">
+                <option value="all">Todo período</option>
+                <option value="month" selected>Este mês</option>
+                <option value="week">Esta semana</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Ordenar</label>
+              <select id="port-filter-sort" class="input-plain input-sm" onchange="UI.renderPortfolio()">
+                <option value="date-desc">Mais recente</option>
+                <option value="value-desc">Maior valor</option>
+                <option value="value-asc">Menor valor</option>
+              </select>
+            </div>
+          </div>
 
-document.getElementById("addExpense").onclick = () => {
-    const name = document.getElementById("expenseName").value;
-    const value = Number(document.getElementById("expenseValue").value);
-    const category = document.getElementById("expenseCategory").value;
+          <!-- Asset breakdown -->
+          <div class="card section-card">
+            <div class="card-header"><h3>Distribuição por Tipo</h3></div>
+            <div id="port-breakdown" class="cat-breakdown" style="padding:16px 20px"></div>
+          </div>
 
-    if (!name || !value) return;
+          <!-- Portfolio list -->
+          <div class="card">
+            <div id="portfolio-list" class="expense-list">
+              <div class="empty-state">
+                <span class="empty-icon">◇</span>
+                <p>Nenhum aporte registrado ainda.</p>
+                <button class="btn-ghost btn-sm" onclick="UI.openInvestmentModal()">Registrar primeiro aporte</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-    expenses.push({ name, value, category });
+      <!-- ===== PAGE: GRÁFICOS ===== -->
+      <section class="page" id="page-graficos">
+        <div class="page-header">
+          <h1 class="page-title">Gráficos</h1>
+          <p class="page-sub">Visualize sua saúde financeira</p>
+        </div>
 
-    document.getElementById("expenseName").value = "";
-    document.getElementById("expenseValue").value = "";
-    document.getElementById("expenseCategory").value = "";
+        <div class="charts-grid">
+          <div class="card chart-card">
+            <div class="card-header">
+              <h3>Gastos vs Salário</h3>
+              <select id="chart-period" class="input-plain input-sm" onchange="UI.renderCharts()">
+                <option value="month">Este mês</option>
+                <option value="all">Todo período</option>
+              </select>
+            </div>
+            <div class="chart-wrap"><canvas id="chart-bar"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="card-header"><h3>Distribuição por Categoria</h3></div>
+            <div class="chart-wrap"><canvas id="chart-pie"></canvas></div>
+          </div>
+          <div class="card chart-card chart-full">
+            <div class="card-header"><h3>Evolução dos Gastos (Últimos 6 meses)</h3></div>
+            <div class="chart-wrap chart-wrap-lg"><canvas id="chart-line"></canvas></div>
+          </div>
+        </div>
 
-    render();
-};
+        <!-- Category breakdown table -->
+        <div class="card">
+          <div class="card-header"><h3>Detalhamento por Categoria</h3></div>
+          <div id="cat-breakdown" class="cat-breakdown"></div>
+        </div>
+      </section>
 
-document.getElementById("addInvest").onclick = () => {
-    const value = Number(document.getElementById("investValue").value);
-    if (!value) return;
+      <!-- ===== PAGE: INVESTIMENTOS ===== -->
+      <section class="page" id="page-investimentos">
+        <div class="page-header">
+          <h1 class="page-title">Investimentos</h1>
+          <p class="page-sub">Faça seu dinheiro trabalhar para você</p>
+        </div>
 
-    investments.push({ value });
+        <!-- Suggestion based on balance -->
+        <div class="card insight-card" id="invest-insight">
+          <div class="insight-icon">💡</div>
+          <div class="insight-content">
+            <div class="insight-tag">Sugestão Axion</div>
+            <p class="insight-text" id="invest-insight-text">Configure seu salário para receber sugestões personalizadas.</p>
+          </div>
+        </div>
 
-    document.getElementById("investValue").value = "";
+        <!-- Profile -->
+        <div class="card section-card">
+          <div class="card-header"><h3>Perfil do Investidor</h3></div>
+          <div class="profile-display" id="profile-display"></div>
+          <div class="profile-options profile-options-inline">
+            <label class="profile-opt">
+              <input type="radio" name="invest-profile" value="conservador" onchange="Logic.updateProfile(this.value)" />
+              <div class="profile-card profile-card-sm">
+                <span>🛡️</span><strong>Conservador</strong>
+              </div>
+            </label>
+            <label class="profile-opt">
+              <input type="radio" name="invest-profile" value="moderado" onchange="Logic.updateProfile(this.value)" />
+              <div class="profile-card profile-card-sm">
+                <span>⚖️</span><strong>Moderado</strong>
+              </div>
+            </label>
+            <label class="profile-opt">
+              <input type="radio" name="invest-profile" value="arrojado" onchange="Logic.updateProfile(this.value)" />
+              <div class="profile-card profile-card-sm">
+                <span>🚀</span><strong>Arrojado</strong>
+              </div>
+            </label>
+          </div>
+        </div>
 
-    render();
-};
+        <!-- Recommendations -->
+        <div class="card section-card">
+          <div class="card-header"><h3>Recomendações para seu Perfil</h3></div>
+          <div id="invest-recommendations" class="invest-recs"></div>
+        </div>
 
-document.getElementById("addGoal").onclick = () => {
-    const name = document.getElementById("goalName").value;
-    const target = Number(document.getElementById("goalValue").value);
+        <!-- Simulator -->
+        <div class="card section-card">
+          <div class="card-header"><h3>Simulador de Investimento</h3></div>
+          <div class="simulator-form">
+            <div class="sim-row">
+              <div class="form-row">
+                <label>Aporte mensal</label>
+                <div class="input-group">
+                  <span class="input-prefix">R$</span>
+                  <input type="number" id="sim-monthly" placeholder="500" class="input-sim" />
+                </div>
+              </div>
+              <div class="form-row">
+                <label>Taxa anual (%)</label>
+                <input type="number" id="sim-rate" placeholder="10" class="input-plain input-sim" />
+              </div>
+              <div class="form-row">
+                <label>Período (anos)</label>
+                <input type="number" id="sim-years" placeholder="10" class="input-plain input-sim" />
+              </div>
+              <button class="btn-primary" onclick="Logic.simulate()">Simular</button>
+            </div>
+          </div>
+          <div id="sim-result" class="sim-result hidden">
+            <div class="sim-cards">
+              <div class="sim-kpi">
+                <span class="sim-kpi-label">Total Investido</span>
+                <span class="sim-kpi-val" id="sim-invested">—</span>
+              </div>
+              <div class="sim-kpi sim-kpi-accent">
+                <span class="sim-kpi-label">Total com Rendimento</span>
+                <span class="sim-kpi-val" id="sim-total">—</span>
+              </div>
+              <div class="sim-kpi">
+                <span class="sim-kpi-label">Ganho em Juros</span>
+                <span class="sim-kpi-val" id="sim-interest">—</span>
+              </div>
+            </div>
+            <div class="chart-wrap chart-wrap-lg"><canvas id="sim-chart"></canvas></div>
+          </div>
+        </div>
+      </section>
 
-    if (!name || !target) return;
+      <!-- ===== PAGE: METAS ===== -->
+      <section class="page" id="page-metas">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Metas</h1>
+            <p class="page-sub">Planeje e alcance seus objetivos financeiros</p>
+          </div>
+          <button class="btn-primary btn-sm" onclick="UI.openGoalModal()">+ Nova Meta</button>
+        </div>
 
-    goals.push({ name, target, current: 0 });
+        <div id="goals-grid" class="goals-grid">
+          <div class="empty-state">
+            <span class="empty-icon">◆</span>
+            <p>Nenhuma meta criada ainda.</p>
+            <button class="btn-ghost btn-sm" onclick="UI.openGoalModal()">Criar primeira meta</button>
+          </div>
+        </div>
+      </section>
 
-    document.getElementById("goalName").value = "";
-    document.getElementById("goalValue").value = "";
+      <!-- ===== PAGE: APRENDER ===== -->
+      <section class="page" id="page-aprender">
+        <div class="page-header">
+          <h1 class="page-title">Aprender</h1>
+          <p class="page-sub">Educação financeira para crescer com inteligência</p>
+        </div>
 
-    render();
-};
+        <div class="learn-grid">
 
-// INIT
-render();
-</script>
+          <div class="learn-card card" data-topic="cdb">
+            <div class="learn-icon">🏦</div>
+            <h3>CDB</h3>
+            <p>Certificado de Depósito Bancário — empreste dinheiro ao banco e receba juros.</p>
+            <button class="btn-ghost btn-sm" onclick="UI.openLearnDetail('cdb')">Saiba mais</button>
+          </div>
+          <div class="learn-card card" data-topic="cdi">
+            <div class="learn-icon">📊</div>
+            <h3>CDI</h3>
+            <p>Certificado de Depósito Interbancário — a taxa base para comparar investimentos.</p>
+            <button class="btn-ghost btn-sm" onclick="UI.openLearnDetail('cdi')">Saiba mais</button>
+          </div>
+          <div class="learn-card card" data-topic="renda-fixa">
+            <div class="learn-icon">🔒</div>
+            <h3>Renda Fixa</h3>
+            <p>Investimentos com retorno previsível — ideal para reserva de emergência.</p>
+            <button class="btn-ghost btn-sm" onclick="UI.openLearnDetail('renda-fixa')">Saiba mais</button>
+          </div>
+          <div class="learn-card card" data-topic="renda-variavel">
+            <div class="learn-icon">📈</div>
+            <h3>Renda Variável</h3>
+            <p>Ações, FIIs, ETFs — maior potencial de retorno, com mais risco.</p>
+            <button class="btn-ghost btn-sm" onclick="UI.openLearnDetail('renda-variavel')">Saiba mais</button>
+          </div>
+          <div class="learn-card card" data-topic="cripto">
+            <div class="learn-icon">₿</div>
+            <h3>Criptomoedas</h3>
+            <p>Ativos digitais descentralizados — alta volatilidade, alto potencial.</p>
+            <button class="btn-ghost btn-sm" onclick="UI.openLearnDetail('cripto')">Saiba mais</button>
+          </div>
+          <div class="learn-card card" data-topic="tesouro">
+            <div class="learn-icon">🏛️</div>
+            <h3>Tesouro Direto</h3>
+            <p>Títulos públicos do governo federal — seguro e acessível a partir de R$ 30.</p>
+            <button class="btn-ghost btn-sm" onclick="UI.openLearnDetail('tesouro')">Saiba mais</button>
+          </div>
+        </div>
+
+        <!-- Learn Detail Panel -->
+        <div id="learn-detail" class="learn-detail hidden">
+          <div class="card">
+            <div class="card-header">
+              <h3 id="learn-detail-title">—</h3>
+              <button class="btn-ghost btn-sm" onclick="UI.closeLearnDetail()">✕ Fechar</button>
+            </div>
+            <div id="learn-detail-body" class="learn-detail-body"></div>
+          </div>
+        </div>
+
+        <!-- Video Section -->
+        <div class="card section-card">
+          <div class="card-header"><h3>Vídeos Recomendados</h3></div>
+          <div class="video-grid">
+            <div class="video-embed">
+              <iframe src="https://www.youtube.com/embed/SqMjRNMJXRk" title="Educação financeira" frameborder="0" allowfullscreen></iframe>
+              <p>Como começar a investir do zero</p>
+            </div>
+            <div class="video-embed">
+              <iframe src="https://www.youtube.com/embed/hj2qJQQ2MXw" title="Renda fixa" frameborder="0" allowfullscreen></iframe>
+              <p>Renda Fixa explicada de forma simples</p>
+            </div>
+            <div class="video-embed">
+              <iframe src="https://www.youtube.com/embed/d3FiHXmBuFA" title="Tesouro Direto" frameborder="0" allowfullscreen></iframe>
+              <p>Tesouro Direto para iniciantes</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PAGE: CONFIGURAÇÕES ===== -->
+      <section class="page" id="page-configuracoes">
+        <div class="page-header">
+          <h1 class="page-title">Configurações</h1>
+          <p class="page-sub">Personalize sua experiência</p>
+        </div>
+
+        <div class="settings-grid">
+          <!-- Profile -->
+          <div class="card section-card">
+            <div class="card-header"><h3>Perfil Financeiro</h3></div>
+            <div class="settings-form">
+              <div class="form-row">
+                <label>Salário Mensal</label>
+                <div class="input-group">
+                  <span class="input-prefix">R$</span>
+                  <input type="number" id="settings-salary" placeholder="0,00" class="input-settings" />
+                </div>
+              </div>
+              <div class="form-row">
+                <label>Nome de exibição</label>
+                <input type="text" id="settings-name" placeholder="Seu nome" class="input-plain input-settings" />
+              </div>
+              <button class="btn-primary" onclick="Logic.saveSettings()">Salvar alterações</button>
+            </div>
+          </div>
+
+          <!-- Appearance -->
+          <div class="card section-card">
+            <div class="card-header"><h3>Aparência</h3></div>
+            <div class="theme-toggle-row">
+              <span>Modo escuro</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="theme-toggle" checked onchange="Logic.toggleTheme()" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Notifications (visual only) -->
+          <div class="card section-card">
+            <div class="card-header"><h3>Alertas Inteligentes</h3></div>
+            <div class="settings-form">
+              <div class="toggle-row">
+                <div>
+                  <strong>Alerta de limite por categoria</strong>
+                  <p class="toggle-desc">Avisa quando você ultrapassa o limite definido</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="alert-limit" checked onchange="State.save()" />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <strong>Insight diário</strong>
+                  <p class="toggle-desc">Sugestões e análises baseadas em seus dados</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="alert-insight" checked onchange="State.save()" />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Danger Zone -->
+          <div class="card section-card danger-card">
+            <div class="card-header"><h3>⚠ Zona de Risco</h3></div>
+            <div class="settings-form">
+              <p>Estas ações são permanentes e não podem ser desfeitas.</p>
+              <div class="danger-actions">
+                <button class="btn-danger" onclick="Logic.confirmResetExpenses()">Limpar todos os gastos</button>
+                <button class="btn-danger btn-danger-full" onclick="Logic.confirmResetAll()">Resetar todos os dados</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- BOTTOM NAV (Mobile) -->
+    <nav class="bottom-nav">
+      <a href="#" class="bnav-item active" data-page="dashboard">
+        <span class="bnav-icon">◈</span><span class="bnav-label">Início</span>
+      </a>
+      <a href="#" class="bnav-item" data-page="gastos">
+        <span class="bnav-icon">◉</span><span class="bnav-label">Gastos</span>
+      </a>
+      <a href="#" class="bnav-item bnav-center" data-page="gastos" onclick="UI.openExpenseModal(); return false;">
+        <span class="bnav-add">+</span>
+      </a>
+      <a href="#" class="bnav-item" data-page="graficos">
+        <span class="bnav-icon">◎</span><span class="bnav-label">Gráficos</span>
+      </a>
+      <a href="#" class="bnav-item" data-page="metas">
+        <span class="bnav-icon">◆</span><span class="bnav-label">Metas</span>
+      </a>
+    </nav>
+
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
